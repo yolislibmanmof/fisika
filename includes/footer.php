@@ -8,6 +8,17 @@ $f2NavIcon = function (string $label): string {
     foreach ($map as $k => $ic) { if (str_contains($l, $k)) return $ic; }
     return 'fa-star';
 };
+
+/* ===== PREMIUM: Safe module check ===== */
+$useAsset = file_exists(__DIR__ . '/Asset.php');
+if ($useAsset && !class_exists('Asset')) require_once __DIR__ . '/Asset.php';
+
+function footer_asset_js($path) {
+    global $useAsset;
+    return $useAsset && class_exists('Asset')
+        ? Asset::js($path)
+        : '<script src="' . url($path) . '" defer></script>';
+}
 ?>
 <style>
 /* ========= FOOTER ULTIMATE ICONS v4 (inline — public.css tetap final) ========= */
@@ -95,6 +106,12 @@ $f2NavIcon = function (string $label): string {
 #toTop::before{content:'';position:absolute;inset:3px;border-radius:13px;background:linear-gradient(135deg,#0a66c2,#071a39)}
 #toTop i{position:relative;z-index:1}
 #toTop:hover::before{background:linear-gradient(135deg,#00b874,#00915c)}
+
+/* PREMIUM: Smooth transitions untuk semua link di footer (dark mode) */
+.footer a,
+.footer button {
+    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+}
 </style>
 
 <!-- ===== FOOTER ===== -->
@@ -119,14 +136,14 @@ $f2NavIcon = function (string $label): string {
       </div>
       <p><?= e($S['meta_description'] ?? '') ?></p>
       <div class="f2-soc">
-        <a href="<?= e($S['facebook'] ?? '#') ?>" class="fb" data-label="FACEBOOK" target="_blank" rel="noopener"><i class="fa-brands fa-facebook-f"></i><span class="ring"></span></a>
-        <a href="<?= e($S['instagram'] ?? '#') ?>" class="ig" data-label="INSTAGRAM" target="_blank" rel="noopener"><i class="fa-brands fa-instagram"></i><span class="ring"></span></a>
-        <a href="<?= e($S['youtube'] ?? '#') ?>" class="yt" data-label="YOUTUBE" target="_blank" rel="noopener"><i class="fa-brands fa-youtube"></i><span class="ring"></span></a>
-        <a href="<?= e($S['linkedin'] ?? '#') ?>" class="li" data-label="LINKEDIN" target="_blank" rel="noopener"><i class="fa-brands fa-linkedin-in"></i><span class="ring"></span></a>
-        <a href="#" class="xx" data-label="X / TWITTER"><i class="fa-brands fa-x-twitter"></i><span class="ring"></span></a>
-        <a href="#" class="tt" data-label="TIKTOK"><i class="fa-brands fa-tiktok"></i><span class="ring"></span></a>
-        <a href="<?= e($waUrl) ?>" class="wa" data-label="WHATSAPP" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i><span class="ring"></span></a>
-        <a href="mailto:<?= e($S['email'] ?? '') ?>" class="em" data-label="EMAIL"><i class="fa-solid fa-envelope"></i><span class="ring"></span></a>
+        <a href="<?= e($S['facebook'] ?? '#') ?>" class="fb" data-label="FACEBOOK" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i><span class="ring"></span></a>
+        <a href="<?= e($S['instagram'] ?? '#') ?>" class="ig" data-label="INSTAGRAM" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><i class="fa-brands fa-instagram"></i><span class="ring"></span></a>
+        <a href="<?= e($S['youtube'] ?? '#') ?>" class="yt" data-label="YOUTUBE" target="_blank" rel="noopener noreferrer" aria-label="YouTube"><i class="fa-brands fa-youtube"></i><span class="ring"></span></a>
+        <a href="<?= e($S['linkedin'] ?? '#') ?>" class="li" data-label="LINKEDIN" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn"><i class="fa-brands fa-linkedin-in"></i><span class="ring"></span></a>
+        <a href="#" class="xx" data-label="X / TWITTER" aria-label="X Twitter"><i class="fa-brands fa-x-twitter"></i><span class="ring"></span></a>
+        <a href="#" class="tt" data-label="TIKTOK" aria-label="TikTok"><i class="fa-brands fa-tiktok"></i><span class="ring"></span></a>
+        <a href="<?= e($waUrl) ?>" class="wa" data-label="WHATSAPP" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp"><i class="fa-brands fa-whatsapp"></i><span class="ring"></span></a>
+        <a href="mailto:<?= e($S['email'] ?? '') ?>" class="em" data-label="EMAIL" aria-label="Email"><i class="fa-solid fa-envelope"></i><span class="ring"></span></a>
       </div>
     </div>
 
@@ -185,7 +202,7 @@ $f2NavIcon = function (string $label): string {
     <div class="f2-quick">
       <a href="tel:<?= e(preg_replace('/\s/','', (string)($S['telepon'] ?? ''))) ?>"><i class="fa-solid fa-phone-volume"></i> Hubungi Kami</a>
       <a href="mailto:<?= e($S['email'] ?? '') ?>"><i class="fa-solid fa-paper-plane"></i> Kirim Email</a>
-      <a href="<?= e($waUrl) ?>" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> Chat WhatsApp</a>
+      <a href="<?= e($waUrl) ?>" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-whatsapp"></i> Chat WhatsApp</a>
       <a href="<?= url('page.php?slug=kontak') ?>"><i class="fa-solid fa-map-location-dot"></i> Petunjuk Lokasi</a>
       <a href="<?= url('berita.php') ?>"><i class="fa-solid fa-rss"></i> Langganan Berita</a>
     </div>
@@ -195,7 +212,7 @@ $f2NavIcon = function (string $label): string {
     <div class="container f-bottom-in">
       <span><?= e($S['footer_text'] ?? '') ?></span>
       <span class="f2-bright">
-        <span class="f2-status"><span class="dot"></i></span>SISTEM ONLINE</span>
+        <span class="f2-status"><span class="dot"></span>SISTEM ONLINE</span>
         <span class="f2-ver"><i class="fa-solid fa-code-branch"></i> v4.0 ULTIMATE</span>
         <span>Dikembangkan oleh <b>Tim IT Prodi Fisika</b></span>
       </span>
@@ -203,9 +220,10 @@ $f2NavIcon = function (string $label): string {
   </div>
 </footer>
 
-<button class="to-top" id="toTop" title="Kembali ke atas"><i class="fa-solid fa-arrow-up"></i></button>
+<button class="to-top" id="toTop" title="Kembali ke atas" aria-label="Scroll ke atas"><i class="fa-solid fa-arrow-up"></i></button>
 
-<script src="<?= url('assets/public/js/public.js') ?>"></script>
+<?= footer_asset_js('assets/public/js/public.js') ?>
+
 <script>
 /* ========= EKSTENSI PREMIUM v4 (inline — public.js tetap final) ========= */
 (function () {
@@ -217,9 +235,26 @@ $f2NavIcon = function (string $label): string {
     var p = max > 0 ? (h.scrollTop / max) * 100 : 0;
     if (bar) bar.style.width = p + '%';
     if (tt) tt.style.setProperty('--sp', p.toFixed(1));
+    
+    /* Show/hide toTop button based on scroll position */
+    if (tt) {
+      if (h.scrollTop > 400) {
+        tt.classList.add('visible');
+      } else {
+        tt.classList.remove('visible');
+      }
+    }
   };
   document.addEventListener('scroll', onScroll, { passive: true });
   onScroll();
+
+  /* ===== PREMIUM: Smooth scroll to top ===== */
+  if (tt) {
+    tt.addEventListener('click', function(e) {
+      e.preventDefault();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
 
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var fine = window.matchMedia('(pointer: fine)').matches;
@@ -245,6 +280,84 @@ $f2NavIcon = function (string $label): string {
       });
     }
   }
+  
+  /* ===== PREMIUM: Clock WIB real-time ===== */
+  function updateClock() {
+    var now = new Date();
+    var hours = String(now.getHours()).padStart(2, '0');
+    var minutes = String(now.getMinutes()).padStart(2, '0');
+    var seconds = String(now.getSeconds()).padStart(2, '0');
+    
+    var clockWIB = document.getElementById('clockWIB');
+    if (clockWIB) clockWIB.textContent = hours + ':' + minutes + ':' + seconds;
+    
+    var a2Clock = document.getElementById('a2Clock');
+    if (a2Clock) a2Clock.textContent = hours + ':' + minutes + ':' + seconds;
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  /* ===== PREMIUM: Dark Mode Toggle Logic ===== */
+  var themeToggle = document.getElementById('themeToggle');
+  if (themeToggle) {
+    themeToggle.addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      
+      document.documentElement.setAttribute('data-theme', next);
+      try {
+        localStorage.setItem('fisika-theme', next);
+      } catch(e) {}
+      
+      /* Update theme-color meta tag */
+      var metaTheme = document.querySelector('meta[name="theme-color"]');
+      if (metaTheme) {
+        metaTheme.content = next === 'dark' ? '#0B1120' : '#0A66C2';
+      }
+      
+      /* Dispatch custom event for other scripts */
+      window.dispatchEvent(new CustomEvent('themechange', { detail: { theme: next } }));
+    });
+  }
+  
+  /* ===== PREMIUM: Listen to system theme changes ===== */
+  try {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (!localStorage.getItem('fisika-theme')) {
+        var newTheme = e.matches ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', newTheme);
+      }
+    });
+  } catch(e) {}
+
+  /* ===== PREMIUM: Keyboard shortcut (Alt+D untuk toggle dark mode) ===== */
+  document.addEventListener('keydown', function(e) {
+    if (e.altKey && e.key === 'd') {
+      e.preventDefault();
+      var themeToggle = document.getElementById('themeToggle');
+      if (themeToggle) themeToggle.click();
+    }
+  });
+  
+  /* ===== PREMIUM: Search overlay keyboard shortcut (/ untuk focus search) ===== */
+  document.addEventListener('keydown', function(e) {
+    if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      var active = document.activeElement;
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+      e.preventDefault();
+      var searchOverlay = document.getElementById('searchOverlay');
+      if (searchOverlay) {
+        searchOverlay.classList.add('open');
+        var searchInput = searchOverlay.querySelector('input[name="q"]');
+        if (searchInput) setTimeout(function(){ searchInput.focus(); }, 100);
+      }
+    }
+    if (e.key === 'Escape') {
+      var searchOverlay = document.getElementById('searchOverlay');
+      if (searchOverlay) searchOverlay.classList.remove('open');
+    }
+  });
+
 })();
 </script>
 </body>

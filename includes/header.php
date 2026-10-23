@@ -3,6 +3,37 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../config/security.php';
 sec_send_headers();
 
+/* ===== PREMIUM MODULES (Safe Load - tidak error jika belum ada) ===== */
+$useCache = file_exists(__DIR__ . '/Cache.php');
+$useAsset = file_exists(__DIR__ . '/Asset.php');
+$useSEO   = file_exists(__DIR__ . '/SEO.php');
+
+if ($useCache) require_once __DIR__ . '/Cache.php';
+if ($useAsset) require_once __DIR__ . '/Asset.php';
+if ($useSEO)   require_once __DIR__ . '/SEO.php';
+
+/* ===== ASSET HELPER WRAPPER ===== */
+function asset_css($path) {
+    global $useAsset;
+    return $useAsset && class_exists('Asset')
+        ? Asset::css($path)
+        : '<link rel="stylesheet" href="' . url($path) . '">';
+}
+
+function asset_js($path, $defer = true) {
+    global $useAsset;
+    return $useAsset && class_exists('Asset')
+        ? Asset::js($path)
+        : '<script src="' . url($path) . '"' . ($defer ? ' defer' : '') . '></script>';
+}
+
+function asset_preload($path, $as = 'style') {
+    global $useAsset;
+    return $useAsset && class_exists('Asset')
+        ? Asset::preload($path, $as)
+        : '<link rel="preload" href="' . url($path) . '" as="' . $as . '">';
+}
+
 /* Kompabilitas bila config lama belum memiliki query aman */
 if (!function_exists('q'))  { function q($c, $s) { try { $r = $c->query($s); return $r ? $r->fetch_all(MYSQLI_ASSOC) : []; } catch (Throwable $e) { return []; } } }
 if (!function_exists('q1')) { function q1($c, $s) { return q($c, $s)[0] ?? null; } }
@@ -24,22 +55,67 @@ function nav_active(string $url): bool {
 }
 $parentActive = fn($kids) => (bool)array_filter($kids, fn($k) => nav_active($k['url']));
 
-/* Ticker berita terbaru (pengganti teks PMB) */
-$tickerItems = q($conn, "SELECT judul, slug FROM berita WHERE status=1 ORDER BY tanggal DESC LIMIT 5");
+/* Ticker berita terbaru - DENGAN CACHING (premium) */
+if ($useCache && function_exists('cache_remember')) {
+    $tickerItems = cache_remember('ticker_news_header', 1800, function() use ($conn) {
+        return q($conn, "SELECT judul, slug FROM berita WHERE status=1 ORDER BY tanggal DESC LIMIT 5");
+    });
+} else {
+    $tickerItems = q($conn, "SELECT judul, slug FROM berita WHERE status=1 ORDER BY tanggal DESC LIMIT 5");
+}
 if (!$tickerItems) $tickerItems = [['judul' => 'Selamat datang di website resmi Program Studi Fisika', 'slug' => '']];
+
+/* ===== PREMIUM: Detect theme preference ===== */
+$initialTheme = 'light'; // Default, JS akan override
 ?>
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" data-theme="<?= e($initialTheme) ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- ===== SEO META (existing + premium additions) ===== -->
 <title><?= e($S['site_name'] ?? 'Program Studi Fisika') ?> — <?= e($S['kampus'] ?? '') ?></title>
 <meta name="description" content="<?= e($S['meta_description'] ?? '') ?>">
+<meta name="theme-color" content="#0A66C2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0B1120" media="(prefers-color-scheme: dark)">
+
+<!-- ===== PREMIUM: Canonical URL ===== -->
+<link rel="canonical" href="<?= e(url($_SERVER['REQUEST_URI'] ?? '')) ?>">
+
+<!-- ===== PREMIUM: Open Graph Defaults (di-override per halaman jika perlu) ===== -->
+<meta property="og:site_name" content="<?= e($S['site_name'] ?? 'Program Studi Fisika') ?>">
+<meta property="og:locale" content="id_ID">
+<meta property="og:type" content="website">
+
 <?php if (!empty($S['favicon'])): ?><link rel="icon" href="<?= e(media_url($S['favicon'])) ?>"><?php endif; ?>
+
+<!-- ===== PREMIUM: Preload Critical Resources ===== -->
+<?= asset_preload('assets/public/css/public.css', 'style') ?>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-<link rel="stylesheet" href="<?= url('assets/public/css/public.css') ?>">
+
+<!-- ===== Stylesheets dengan Versioning ===== -->
+<?= asset_css('assets/public/css/public.css') ?>
+
+<!-- ===== PREMIUM: Organization Schema (SEO) ===== -->
+<?php if ($useSEO && class_exists('SEO') && function_exists('seo')): ?>
+<?= seo()->organization() ?>
+<?php endif; ?>
+
+<!-- ===== PREMIUM: Anti-FOUC Dark Mode Script ===== -->
+<script>
+(function() {
+    try {
+        var theme = localStorage.getItem('fisika-theme') || 
+                   (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+    } catch(e) {}
+})();
+</script>
+
 <style>
 /* ========= EKSTENSI PREMIUM v3 (inline — public.css tetap final) ========= */
 .x-progress{position:fixed;top:0;left:0;height:3px;width:0;background:linear-gradient(90deg,#0a66c2,#00b874);z-index:1001;box-shadow:0 0 12px rgba(0,184,116,.6)}
@@ -117,6 +193,120 @@ if (!$tickerItems) $tickerItems = [['judul' => 'Selamat datang di website resmi 
 .x-wordmark span em{font-style:normal;color:rgba(0,184,116,.4);-webkit-text-stroke:0}
 @media(max-width:1024px){.x-akad-grid{grid-template-columns:repeat(2,1fr)}.x-blog-layout{grid-template-columns:1fr}.x-side{position:static}}
 @media(max-width:560px){.x-akad-grid{grid-template-columns:1fr}.x-pn{grid-template-columns:1fr}}
+
+/* ========= PREMIUM: Dark Mode Theme System ========= */
+:root {
+    --bg-body: #ffffff;
+    --bg-surface: #ffffff;
+    --bg-elevated: #f8fafc;
+    --text-main: #0F172A;
+    --text-muted: #475569;
+    --border-light: #e2e8f0;
+    --shadow-base: 0 4px 12px rgba(15,23,42,0.08);
+    --theme-transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+[data-theme="dark"] {
+    --bg-body: #0B1120;
+    --bg-surface: #1E293B;
+    --bg-elevated: #334155;
+    --text-main: #F1F5F9;
+    --text-muted: #94A3B8;
+    --border-light: #334155;
+    --shadow-base: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+body {
+    background-color: var(--bg-body);
+    color: var(--text-main);
+    transition: var(--theme-transition);
+}
+
+[data-theme="dark"] body,
+[data-theme="dark"] .x-akad-sec,
+[data-theme="dark"] .x-side-card,
+[data-theme="dark"] .x-akad-card,
+[data-theme="dark"] .x-marq-card,
+[data-theme="dark"] .x-chips a,
+[data-theme="dark"] .x-pn a,
+[data-theme="dark"] .x-author,
+[data-theme="dark"] .navbar,
+[data-theme="dark"] .topbar {
+    background-color: var(--bg-surface);
+    color: var(--text-main);
+}
+
+[data-theme="dark"] .x-akad-card p,
+[data-theme="dark"] .x-tl-item p,
+[data-theme="dark"] .x-marq-card b,
+[data-theme="dark"] .x-author small,
+[data-theme="dark"] .ticker a {
+    color: var(--text-muted);
+}
+
+[data-theme="dark"] .x-akad-card,
+[data-theme="dark"] .x-side-card,
+[data-theme="dark"] .x-pn a,
+[data-theme="dark"] .x-author,
+[data-theme="dark"] .x-chips a,
+[data-theme="dark"] .x-marq-card {
+    border-color: var(--border-light);
+    background-color: var(--bg-surface);
+}
+
+[data-theme="dark"] .navbar {
+    background-color: rgba(11, 17, 32, 0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+/* Dark Mode Toggle Button */
+.theme-toggle {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.theme-toggle:hover {
+    background: rgba(255,255,255,0.2);
+    transform: translateY(-2px);
+}
+
+.theme-toggle i {
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.theme-toggle .fa-sun {
+    position: absolute;
+    opacity: 0;
+    transform: rotate(-90deg) scale(0);
+}
+
+[data-theme="dark"] .theme-toggle .fa-moon {
+    opacity: 0;
+    transform: rotate(90deg) scale(0);
+}
+
+[data-theme="dark"] .theme-toggle .fa-sun {
+    opacity: 1;
+    transform: rotate(0) scale(1);
+}
+
+/* Smooth theme transitions untuk semua elemen */
+*, *::before, *::after {
+    transition-property: background-color, border-color, color;
+    transition-duration: 0.3s;
+    transition-timing-function: ease;
+}
 </style>
 </head>
 <body>
@@ -142,6 +332,11 @@ if (!$tickerItems) $tickerItems = [['judul' => 'Selamat datang di website resmi 
       </div>
     </div>
     <div class="tb-right">
+      <!-- PREMIUM: Dark Mode Toggle -->
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode" title="Ganti mode tampilan">
+        <i class="fa-solid fa-moon"></i>
+        <i class="fa-solid fa-sun"></i>
+      </button>
       <a href="#"><i class="fa-solid fa-user-graduate"></i> Alumni</a>
       <a href="#"><i class="fa-solid fa-download"></i> Unduhan</a>
       <span class="akre-pill"><i class="fa-solid fa-certificate"></i> Terakreditasi <?= e($S['akreditasi'] ?? '') ?></span>
@@ -185,9 +380,9 @@ if (!$tickerItems) $tickerItems = [['judul' => 'Selamat datang di website resmi 
     </nav>
 
     <div class="nav-actions">
-      <button class="icon-btn" id="btnSearch" title="Cari"><i class="fa-solid fa-magnifying-glass"></i></button>
+      <button class="icon-btn" id="btnSearch" title="Cari" aria-label="Buka pencarian"><i class="fa-solid fa-magnifying-glass"></i></button>
       <a class="btn-cta" href="<?= url('page.php?slug=kontak') ?>"><i class="fa-solid fa-paper-plane"></i> DAFTAR SEKARANG</a>
-      <button class="icon-btn burger" id="btnBurger"><i class="fa-solid fa-bars-staggered"></i></button>
+      <button class="icon-btn burger" id="btnBurger" aria-label="Toggle menu"><i class="fa-solid fa-bars-staggered"></i></button>
     </div>
   </div>
 </header>
@@ -195,8 +390,8 @@ if (!$tickerItems) $tickerItems = [['judul' => 'Selamat datang di website resmi 
 <!-- ===== SEARCH OVERLAY ===== -->
 <div class="search-overlay" id="searchOverlay">
   <form action="<?= url('berita.php') ?>" method="get" class="search-box">
-    <input type="text" name="q" placeholder="Ketik kata kunci berita / kegiatan..." autocomplete="off">
-    <button type="submit"><i class="fa-solid fa-magnifying-glass"></i></button>
-    <button type="button" class="search-close" id="searchClose"><i class="fa-solid fa-xmark"></i></button>
+    <input type="text" name="q" placeholder="Ketik kata kunci berita / kegiatan..." autocomplete="off" aria-label="Kata kunci pencarian">
+    <button type="submit" aria-label="Cari"><i class="fa-solid fa-magnifying-glass"></i></button>
+    <button type="button" class="search-close" id="searchClose" aria-label="Tutup pencarian"><i class="fa-solid fa-xmark"></i></button>
   </form>
 </div>
