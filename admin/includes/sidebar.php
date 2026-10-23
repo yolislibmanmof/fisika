@@ -1,5 +1,6 @@
 <?php
 $cnt = fn(string $sql): int => (int)(q1($conn, $sql)['c'] ?? 0);
+
 $groups = [
   ['UTAMA', 'fa-compass', [
     ['index.php', 'fa-gauge-high', 'Dashboard', ''],
@@ -9,6 +10,13 @@ $groups = [
     ['galeri.php', 'fa-images', 'Galeri', $cnt("SELECT COUNT(*) AS c FROM galeri")],
     ['halaman.php', 'fa-file-lines', 'Halaman Statis', $cnt("SELECT COUNT(*) AS c FROM pages")],
     ['sambutan.php', 'fa-comment-dots', 'Sambutan Kaprodi', ''],
+  ]],
+  ['AKADEMIK', 'fa-graduation-cap', [
+    ['dosen.php', 'fa-chalkboard-user', 'Dosen & Peneliti', $cnt("SELECT COUNT(*) AS c FROM dosen WHERE aktif=1")],
+    ['publikasi.php', 'fa-book-open', 'Publikasi Ilmiah', $cnt("SELECT COUNT(*) AS c FROM publikasi")],
+    ['agenda.php', 'fa-calendar-days', 'Agenda & Kalender', $cnt("SELECT COUNT(*) AS c FROM agenda WHERE status IN ('akan_datang', 'berlangsung')")],
+    ['unduh.php', 'fa-download', 'Pusat Unduhan', $cnt("SELECT COUNT(*) AS c FROM unduh")],
+    ['alumni.php', 'fa-user-graduate', 'Alumni & Tracer', $cnt("SELECT COUNT(*) AS c FROM alumni WHERE ditampilkan=1")],
   ]],
   ['TAMPILAN', 'fa-wand-magic-sparkles', [
     ['hero.php', 'fa-photo-film', 'Hero Slider', $cnt("SELECT COUNT(*) AS c FROM heroes")],
@@ -22,6 +30,7 @@ $groups = [
     ['logs.php', 'fa-shield-halved', 'Audit Log', $cnt("SELECT COUNT(*) AS c FROM admin_logs WHERE created_at >= (NOW() - INTERVAL 1 DAY)")],
   ]],
 ];
+
 $allKeys = [];
 foreach ($groups as $g) foreach ($g[2] as $it) $allKeys[] = $it[0];
 $anyOpen = in_array($ACTIVE, $allKeys, true);
@@ -39,7 +48,7 @@ $anyOpen = in_array($ACTIVE, $allKeys, true);
 .a2-glabel .caret{margin-left:auto;font-size:9px;transition:.35s cubic-bezier(.22,.61,.36,1)}
 .a2-group.open .a2-glabel .caret{transform:rotate(90deg);color:#7ef0c4}
 .a2-gbody{max-height:0;overflow:hidden;transition:max-height .5s cubic-bezier(.22,.61,.36,1)}
-.a2-group.open .a2-gbody{max-height:420px}
+.a2-group.open .a2-gbody{max-height:600px} /* Dinaikkan agar menu AKADEMIK yang panjang tidak terpotong */
 .a2-badge{margin-left:auto;background:rgba(0,184,116,.2);color:#7ef0c4;font-size:9.5px;font-weight:800;padding:2px 8px;border-radius:99px}
 .sidebar a.on .a2-badge{background:rgba(255,255,255,.25);color:#fff}
 .sb-foot{display:flex;align-items:center;justify-content:center;gap:8px}

@@ -18,3 +18,18 @@
 [23-Oct-2026 04:09:16 UTC] PHP Fatal error:  Cannot redeclare asset_css() (previously declared in C:\laragon\www\fisika\includes\header.php:16) in C:\laragon\www\fisika\includes\Asset.php on line 78
 [23-Oct-2026 04:10:56 UTC] PHP Fatal error:  Cannot redeclare asset_css() (previously declared in C:\laragon\www\fisika\includes\header.php:16) in C:\laragon\www\fisika\includes\Asset.php on line 78
 [23-Oct-2026 04:17:08 UTC] Query error: Expression #2 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'fisika.berita.tanggal' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by | SQL: SELECT DATE_FORMAT(tanggal,'%Y-%m') AS ym, DATE_FORMAT(tanggal,'%M %Y') AS label, COUNT(*) AS c FROM berita WHERE status=1 GROUP BY ym ORDER BY ym DESC LIMIT 12
+[23-Oct-2026 05:10:38 UTC] Prepared query error: Unknown column 'urutan' in 'order clause' | SQL: SELECT * FROM agenda WHERE 1=1 ORDER BY tanggal_mulai ASC, urutan ASC
+[23-Oct-2026 05:38:09 UTC] Prepared query error: Unknown column 'urutan' in 'order clause' | SQL: SELECT * FROM unduh WHERE 1=1 ORDER BY urutan ASC, tanggal_upload DESC
+[23-Oct-2026 05:38:28 UTC] Prepared query error: Unknown column 'urutan' in 'order clause' | SQL: SELECT * FROM agenda WHERE 1=1 ORDER BY tanggal_mulai ASC, urutan ASC
+[23-Oct-2026 05:38:32 UTC] Prepared query error: Unknown column 'urutan' in 'order clause' | SQL: SELECT * FROM unduh WHERE 1=1 ORDER BY urutan ASC, tanggal_upload DESC
+[23-Oct-2026 05:38:33 UTC] Query error: Expression #2 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'fisika.berita.tanggal' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by | SQL: SELECT DATE_FORMAT(tanggal,'%Y-%m') AS ym, DATE_FORMAT(tanggal,'%M %Y') AS label, COUNT(*) AS c FROM berita WHERE status=1 GROUP BY ym ORDER BY ym DESC LIMIT 12
+[23-Oct-2026 05:38:43 UTC] Prepared query error: Unknown column 'urutan' in 'order clause' | SQL: SELECT * FROM agenda WHERE 1=1 ORDER BY tanggal_mulai ASC, urutan ASC
+[23-Oct-2026 05:38:45 UTC] Prepared query error: Unknown column 'urutan' in 'order clause' | SQL: SELECT * FROM unduh WHERE 1=1 ORDER BY urutan ASC, tanggal_upload DESC
+[23-Oct-2026 05:42:27 UTC] Query error: Unknown column 'urutan' in 'order clause' | SQL: SELECT * FROM agenda ORDER BY tanggal_mulai ASC, urutan ASC
+[23-Oct-2026 05:42:28 UTC] Query error: Unknown column 'urutan' in 'order clause' | SQL: SELECT * FROM unduh ORDER BY urutan ASC, tanggal_upload DESC
+[23-Oct-2026 05:42:31 UTC] Query error: Unknown column 'urutan' in 'order clause' | SQL: SELECT * FROM unduh ORDER BY urutan ASC, tanggal_upload DESC
+[23-Oct-2026 05:42:32 UTC] Query error: Unknown column 'urutan' in 'order clause' | SQL: SELECT * FROM agenda ORDER BY tanggal_mulai ASC, urutan ASC
+[23-Oct-2026 05:42:33 UTC] Query error: Unknown column 'urutan' in 'order clause' | SQL: SELECT * FROM agenda ORDER BY tanggal_mulai ASC, urutan ASC
+[23-Oct-2026 05:42:34 UTC] Query error: Unknown column 'urutan' in 'order clause' | SQL: SELECT * FROM unduh ORDER BY urutan ASC, tanggal_upload DESC
+[23-Oct-2026 05:45:13 UTC] Prepared query error: Unknown column 'urutan' in 'order clause' | SQL: SELECT * FROM agenda WHERE 1=1 ORDER BY tanggal_mulai ASC, urutan ASC
+[23-Oct-2026 05:45:15 UTC] Prepared query error: Unknown column 'urutan' in 'order clause' | SQL: SELECT * FROM unduh WHERE 1=1 ORDER BY urutan ASC, tanggal_upload DESC
