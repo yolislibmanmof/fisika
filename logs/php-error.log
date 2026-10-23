@@ -1,0 +1,20 @@
+[23-Oct-2026 03:54:07 UTC] PHP Fatal error:  Cannot redeclare cache_get() (previously declared in C:\laragon\www\fisika\config\config.php:353) in C:\laragon\www\fisika\includes\Cache.php on line 171
+[23-Oct-2026 03:59:38 UTC] PHP Fatal error:  Cannot redeclare cache_get() (previously declared in C:\laragon\www\fisika\config\config.php:353) in C:\laragon\www\fisika\includes\Cache.php on line 171
+[23-Oct-2026 04:00:13 UTC] PHP Fatal error:  Cannot redeclare cache_get() (previously declared in C:\laragon\www\fisika\config\config.php:353) in C:\laragon\www\fisika\includes\Cache.php on line 171
+[23-Oct-2026 04:00:13 UTC] PHP Fatal error:  Cannot redeclare cache_get() (previously declared in C:\laragon\www\fisika\config\config.php:353) in C:\laragon\www\fisika\includes\Cache.php on line 171
+[23-Oct-2026 04:00:14 UTC] PHP Fatal error:  Cannot redeclare cache_get() (previously declared in C:\laragon\www\fisika\config\config.php:353) in C:\laragon\www\fisika\includes\Cache.php on line 171
+[23-Oct-2026 04:00:15 UTC] PHP Fatal error:  Cannot redeclare cache_get() (previously declared in C:\laragon\www\fisika\config\config.php:353) in C:\laragon\www\fisika\includes\Cache.php on line 171
+[23-Oct-2026 04:02:59 UTC] PHP Fatal error:  Cannot declare class Cache, because the name is already in use in C:\laragon\www\fisika\includes\Cache.php on line 7
+[23-Oct-2026 04:04:32 UTC] PHP Fatal error:  Cannot declare class Cache, because the name is already in use in C:\laragon\www\fisika\includes\Cache.php on line 7
+[23-Oct-2026 04:05:17 UTC] PHP Fatal error:  Cannot declare class Cache, because the name is already in use in C:\laragon\www\fisika\includes\Cache.php on line 7
+[23-Oct-2026 04:05:18 UTC] PHP Fatal error:  Cannot declare class Cache, because the name is already in use in C:\laragon\www\fisika\includes\Cache.php on line 7
+[23-Oct-2026 04:05:18 UTC] PHP Fatal error:  Cannot declare class Cache, because the name is already in use in C:\laragon\www\fisika\includes\Cache.php on line 7
+[23-Oct-2026 04:05:18 UTC] PHP Fatal error:  Cannot declare class Cache, because the name is already in use in C:\laragon\www\fisika\includes\Cache.php on line 7
+[23-Oct-2026 04:05:18 UTC] PHP Fatal error:  Cannot declare class Cache, because the name is already in use in C:\laragon\www\fisika\includes\Cache.php on line 7
+[23-Oct-2026 04:08:40 UTC] PHP Fatal error:  Cannot declare class Cache, because the name is already in use in C:\laragon\www\fisika\includes\Cache.php on line 7
+[23-Oct-2026 04:08:42 UTC] PHP Fatal error:  Cannot declare class Cache, because the name is already in use in C:\laragon\www\fisika\includes\Cache.php on line 7
+[23-Oct-2026 04:08:43 UTC] PHP Fatal error:  Cannot declare class Cache, because the name is already in use in C:\laragon\www\fisika\includes\Cache.php on line 7
+[23-Oct-2026 04:08:43 UTC] PHP Fatal error:  Cannot declare class Cache, because the name is already in use in C:\laragon\www\fisika\includes\Cache.php on line 7
+[23-Oct-2026 04:09:16 UTC] PHP Fatal error:  Cannot redeclare asset_css() (previously declared in C:\laragon\www\fisika\includes\header.php:16) in C:\laragon\www\fisika\includes\Asset.php on line 78
+[23-Oct-2026 04:10:56 UTC] PHP Fatal error:  Cannot redeclare asset_css() (previously declared in C:\laragon\www\fisika\includes\header.php:16) in C:\laragon\www\fisika\includes\Asset.php on line 78
+[23-Oct-2026 04:17:08 UTC] Query error: Expression #2 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'fisika.berita.tanggal' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by | SQL: SELECT DATE_FORMAT(tanggal,'%Y-%m') AS ym, DATE_FORMAT(tanggal,'%M %Y') AS label, COUNT(*) AS c FROM berita WHERE status=1 GROUP BY ym ORDER BY ym DESC LIMIT 12

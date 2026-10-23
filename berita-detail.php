@@ -1,17 +1,66 @@
 <?php
 require_once __DIR__ . '/includes/header.php';
+
+/* ===== PREMIUM: Safe module check ===== */
+$useCache = file_exists(__DIR__ . '/includes/Cache.php');
+$useSEO   = file_exists(__DIR__ . '/includes/SEO.php');
+
+if ($useCache) require_once __DIR__ . '/includes/Cache.php';
+if ($useSEO)   require_once __DIR__ . '/includes/SEO.php';
+
 $slug = slugify($_GET['slug'] ?? '');
-$b = qp($conn, "SELECT * FROM berita WHERE slug=? AND status=1 LIMIT 1", 's', [$slug])[0] ?? null;
-if (!$b) { echo '<div class="container" style="padding:120px 20px"><h2>Berita tidak ditemukan.</h2></div>'; require_once __DIR__.'/includes/footer.php'; exit; }
-try { $conn->query("UPDATE berita SET views = views + 1 WHERE id=" . (int)$b['id']); } catch (Throwable $ex) {}
+
+/* ===== PREMIUM: Cache article (1 hour) ===== */
+if ($useCache && function_exists('cache_remember')) {
+    $b = cache_remember("article:{$slug}", 3600, function() use ($conn, $slug) {
+        return qp($conn, "SELECT * FROM berita WHERE slug=? AND status=1 LIMIT 1", 's', [$slug])[0] ?? null;
+    });
+} else {
+    $b = qp($conn, "SELECT * FROM berita WHERE slug=? AND status=1 LIMIT 1", 's', [$slug])[0] ?? null;
+}
+
+if (!$b) {
+    echo '<div class="container" style="padding:120px 20px"><h2>Berita tidak ditemukan.</h2></div>';
+    require_once __DIR__.'/includes/footer.php';
+    exit;
+}
+
+try {
+    $conn->query("UPDATE berita SET views = views + 1 WHERE id=" . (int)$b['id']);
+} catch (Throwable $ex) {}
 
 $baca      = max(1, (int)round(str_word_count(strip_tags((string)$b['isi'])) / 200));
 $wordCount = str_word_count(strip_tags((string)$b['isi']));
-$prev      = qp($conn, "SELECT slug, judul, gambar FROM berita WHERE status=1 AND tanggal < ? ORDER BY tanggal DESC LIMIT 1", 's', [$b['tanggal']])[0] ?? null;
-$next      = qp($conn, "SELECT slug, judul, gambar FROM berita WHERE status=1 AND tanggal > ? ORDER BY tanggal ASC LIMIT 1", 's', [$b['tanggal']])[0] ?? null;
-$rel       = qp($conn, "SELECT * FROM berita WHERE status=1 AND kategori=? AND id<>? ORDER BY tanggal DESC LIMIT 3", 'si', [$b['kategori'], (int)$b['id']]);
-$sameAuthor = qp($conn, "SELECT * FROM berita WHERE status=1 AND penulis=? AND id<>? ORDER BY tanggal DESC LIMIT 3", 'si', [$b['penulis'], (int)$b['id']]);
-$popCat    = qp($conn, "SELECT * FROM berita WHERE status=1 AND kategori=? ORDER BY views DESC LIMIT 3", 's', [$b['kategori']]);
+
+/* ===== PREMIUM: Cache prev/next articles (30 minutes) ===== */
+if ($useCache && function_exists('cache_remember')) {
+    $prev = cache_remember("prev:{$b['id']}:{$b['tanggal']}", 1800, function() use ($conn, $b) {
+        return qp($conn, "SELECT slug, judul, gambar FROM berita WHERE status=1 AND tanggal < ? ORDER BY tanggal DESC LIMIT 1", 's', [$b['tanggal']])[0] ?? null;
+    });
+    $next = cache_remember("next:{$b['id']}:{$b['tanggal']}", 1800, function() use ($conn, $b) {
+        return qp($conn, "SELECT slug, judul, gambar FROM berita WHERE status=1 AND tanggal > ? ORDER BY tanggal ASC LIMIT 1", 's', [$b['tanggal']])[0] ?? null;
+    });
+} else {
+    $prev = qp($conn, "SELECT slug, judul, gambar FROM berita WHERE status=1 AND tanggal < ? ORDER BY tanggal DESC LIMIT 1", 's', [$b['tanggal']])[0] ?? null;
+    $next = qp($conn, "SELECT slug, judul, gambar FROM berita WHERE status=1 AND tanggal > ? ORDER BY tanggal ASC LIMIT 1", 's', [$b['tanggal']])[0] ?? null;
+}
+
+/* ===== PREMIUM: Cache related articles (30 minutes) ===== */
+if ($useCache && function_exists('cache_remember')) {
+    $rel = cache_remember("related:{$b['kategori']}:{$b['id']}", 1800, function() use ($conn, $b) {
+        return qp($conn, "SELECT * FROM berita WHERE status=1 AND kategori=? AND id<>? ORDER BY tanggal DESC LIMIT 3", 'si', [$b['kategori'], (int)$b['id']]);
+    });
+    $sameAuthor = cache_remember("author:{$b['penulis']}:{$b['id']}", 1800, function() use ($conn, $b) {
+        return qp($conn, "SELECT * FROM berita WHERE status=1 AND penulis=? AND id<>? ORDER BY tanggal DESC LIMIT 3", 'si', [$b['penulis'], (int)$b['id']]);
+    });
+    $popCat = cache_remember("popular:{$b['kategori']}", 1800, function() use ($conn, $b) {
+        return qp($conn, "SELECT * FROM berita WHERE status=1 AND kategori=? ORDER BY views DESC LIMIT 3", 's', [$b['kategori']]);
+    });
+} else {
+    $rel = qp($conn, "SELECT * FROM berita WHERE status=1 AND kategori=? AND id<>? ORDER BY tanggal DESC LIMIT 3", 'si', [$b['kategori'], (int)$b['id']]);
+    $sameAuthor = qp($conn, "SELECT * FROM berita WHERE status=1 AND penulis=? AND id<>? ORDER BY tanggal DESC LIMIT 3", 'si', [$b['penulis'], (int)$b['id']]);
+    $popCat = qp($conn, "SELECT * FROM berita WHERE status=1 AND kategori=? ORDER BY views DESC LIMIT 3", 's', [$b['kategori']]);
+}
 
 /* Extract headings untuk TOC otomatis */
 $headings = [];
@@ -27,9 +76,101 @@ foreach ($matches as $idx => $m) {
 $rating = round(4.1 + (crc32($b['slug']) % 10) / 10, 1);
 $ratingCount = 20 + (crc32($b['slug']) % 80);
 
-/* Related images dari galeri */
-$galRel = q($conn, "SELECT file, judul FROM galeri WHERE tipe='image' ORDER BY urutan ASC LIMIT 4");
+/* ===== PREMIUM: Cache gallery images (1 hour) ===== */
+if ($useCache && function_exists('cache_remember')) {
+    $galRel = cache_remember('gallery_images_detail', 3600, function() use ($conn) {
+        return q($conn, "SELECT file, judul FROM galeri WHERE tipe='image' ORDER BY urutan ASC LIMIT 4");
+    });
+} else {
+    $galRel = q($conn, "SELECT file, judul FROM galeri WHERE tipe='image' ORDER BY urutan ASC LIMIT 4");
+}
+
+/* ===== PREMIUM: Generate excerpt untuk meta description ===== */
+$excerpt = mb_strimwidth(strip_tags((string)$b['isi']), 0, 160, '...');
+
+/* ===== PREMIUM: Set page title untuk SEO ===== */
+$pageTitle = $b['judul'] . ' — ' . ($S['site_name'] ?? 'Program Studi Fisika');
 ?>
+
+<!-- ===== PREMIUM: SEO Meta Tags ===== -->
+<meta property="og:title" content="<?= e($b['judul']) ?>">
+<meta property="og:description" content="<?= e($excerpt) ?>">
+<meta property="og:image" content="<?= e(media_url($b['gambar'])) ?>">
+<meta property="og:url" content="<?= e(url('berita-detail.php?slug=' . $b['slug'])) ?>">
+<meta property="og:type" content="article">
+<meta property="article:published_time" content="<?= e($b['tanggal']) ?>">
+<meta property="article:author" content="<?= e($b['penulis']) ?>">
+<meta property="article:section" content="<?= e($b['kategori']) ?>">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="<?= e($b['judul']) ?>">
+<meta name="twitter:description" content="<?= e($excerpt) ?>">
+<meta name="twitter:image" content="<?= e(media_url($b['gambar'])) ?>">
+
+<!-- ===== PREMIUM: Structured Data (JSON-LD) ===== -->
+<?php if ($useSEO && class_exists('SEO') && function_exists('seo')): ?>
+<?= seo()->article($b) ?>
+<?= seo()->breadcrumb([
+    ['name' => 'Beranda', 'url' => url('index.php')],
+    ['name' => 'Berita', 'url' => url('berita.php')],
+    ['name' => $b['judul'], 'url' => url('berita-detail.php?slug=' . $b['slug'])]
+]) ?>
+<?php else: ?>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": <?= json_encode($b['judul']) ?>,
+  "image": [<?= json_encode(media_url($b['gambar'])) ?>],
+  "datePublished": <?= json_encode($b['tanggal']) ?>,
+  "dateModified": <?= json_encode($b['diperbarui'] ?? $b['tanggal']) ?>,
+  "author": {
+    "@type": "Person",
+    "name": <?= json_encode($b['penulis']) ?>
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": <?= json_encode($S['site_name'] ?? 'Program Studi Fisika') ?>,
+    "logo": {
+      "@type": "ImageObject",
+      "url": <?= json_encode(media_url($S['logo'] ?? '')) ?>
+    }
+  },
+  "description": <?= json_encode($excerpt) ?>,
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": <?= json_encode(url('berita-detail.php?slug=' . $b['slug'])) ?>
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Beranda",
+      "item": <?= json_encode(url('index.php')) ?>
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Berita",
+      "item": <?= json_encode(url('berita.php')) ?>
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": <?= json_encode($b['judul']) ?>,
+      "item": <?= json_encode(url('berita-detail.php?slug=' . $b['slug'])) ?>
+    }
+  ]
+}
+</script>
+<?php endif; ?>
+
 <style>
 /* ========= ULTIMATE BERITA DETAIL ========= */
 .u-detail-hero{position:relative;min-height:520px;display:flex;align-items:center;justify-content:center;overflow:hidden;color:#fff;padding:120px 0 80px}
@@ -137,6 +278,38 @@ $galRel = q($conn, "SELECT file, judul FROM galeri WHERE tipe='image' ORDER BY u
 .u-back-link{display:inline-flex;align-items:center;gap:10px;color:#fff;font-weight:700;font-size:13px;margin-bottom:20px;text-decoration:none;padding:8px 16px;background:rgba(255,255,255,.08);border-radius:99px;border:1px solid rgba(255,255,255,.15);transition:.3s;backdrop-filter:blur(6px)}
 .u-back-link:hover{background:rgba(0,184,116,.25);transform:translateX(-4px)}
 
+/* ===== PREMIUM: Dark Mode Support ===== */
+[data-theme="dark"] .u-article-wrap,
+[data-theme="dark"] .u-toc,
+[data-theme="dark"] .u-rel-compact,
+[data-theme="dark"] .u-rating {
+    background: var(--bg-surface, #1E293B);
+    color: var(--text-main, #F1F5F9);
+    border-color: var(--border-light, #334155);
+}
+
+[data-theme="dark"] .u-content,
+[data-theme="dark"] .u-content p,
+[data-theme="dark"] .u-toc a,
+[data-theme="dark"] .u-rel-compact h4 {
+    color: var(--text-main, #F1F5F9);
+}
+
+[data-theme="dark"] .u-rel-compact .u-meta-mini,
+[data-theme="dark"] .u-rating small {
+    color: var(--text-muted, #94A3B8);
+}
+
+[data-theme="dark"] .u-pn a {
+    background: var(--bg-surface, #1E293B);
+    color: var(--text-main, #F1F5F9);
+    border-color: var(--border-light, #334155);
+}
+
+[data-theme="dark"] .u-pn a small {
+    color: var(--text-muted, #94A3B8);
+}
+
 @media(max-width:1024px){.u-rel-grid{grid-template-columns:1fr 1fr}.u-gallery-strip{grid-template-columns:1fr 1fr}.u-floating-share{display:none}}
 @media(max-width:700px){.u-article-wrap{padding:30px 22px;margin-top:-30px}.u-pn{grid-template-columns:1fr}.u-rel-grid{grid-template-columns:1fr}.u-author-box{grid-template-columns:1fr;text-align:center}.u-author-box .u-av{margin:0 auto}}
 </style>
@@ -146,18 +319,18 @@ $galRel = q($conn, "SELECT file, judul FROM galeri WHERE tipe='image' ORDER BY u
 <!-- ===== HERO ARTICLE ===== -->
 <section class="u-detail-hero">
   <div class="container u-inner reveal">
-    <a href="berita.php" class="u-back-link"><i class="fa-solid fa-arrow-left"></i> Kembali ke Daftar Berita</a>
+    <a href="berita.php" class="u-back-link" aria-label="Kembali ke daftar berita"><i class="fa-solid fa-arrow-left"></i> Kembali ke Daftar Berita</a>
     <span class="u-cat-badge"><i class="fa-solid fa-tag"></i> <?= e($b['kategori']) ?></span>
     <h1><?= e($b['judul']) ?></h1>
     <div class="u-meta">
-      <span><i class="fa-regular fa-calendar-days"></i> <?= date('d F Y', strtotime($b['tanggal'])) ?></span>
-      <span><i class="fa-regular fa-user"></i> <?= e($b['penulis']) ?></span>
-      <span><i class="fa-regular fa-eye"></i> <?= (int)$b['views'] ?> dibaca</span>
-      <span><i class="fa-regular fa-clock"></i> <?= $baca ?> menit baca</span>
-      <span><i class="fa-solid fa-font"></i> <?= number_format($wordCount) ?> kata</span>
+      <span><i class="fa-regular fa-calendar-days" aria-hidden="true"></i> <?= date('d F Y', strtotime($b['tanggal'])) ?></span>
+      <span><i class="fa-regular fa-user" aria-hidden="true"></i> <?= e($b['penulis']) ?></span>
+      <span><i class="fa-regular fa-eye" aria-hidden="true"></i> <?= (int)$b['views'] ?> dibaca</span>
+      <span><i class="fa-regular fa-clock" aria-hidden="true"></i> <?= $baca ?> menit baca</span>
+      <span><i class="fa-solid fa-font" aria-hidden="true"></i> <?= number_format($wordCount) ?> kata</span>
     </div>
     <div class="u-author-inline">
-      <img src="https://ui-avatars.com/api/?name=<?= urlencode($b['penulis']) ?>&background=0a66c2&color=fff&bold=true" alt="">
+      <img src="https://ui-avatars.com/api/?name=<?= urlencode($b['penulis']) ?>&background=0a66c2&color=fff&bold=true" alt="Avatar <?= e($b['penulis']) ?>">
       <span><b><?= e($b['penulis']) ?></b><small>Tim Humas Prodi Fisika</small></span>
     </div>
   </div>
@@ -167,8 +340,8 @@ $galRel = q($conn, "SELECT file, judul FROM galeri WHERE tipe='image' ORDER BY u
 <div class="container">
   <div class="u-article-wrap reveal">
     <?php if ($headings): ?>
-    <div class="u-toc">
-      <h4><i class="fa-solid fa-list-ol"></i> Daftar Isi</h4>
+    <div class="u-toc" role="navigation" aria-label="Daftar isi artikel">
+      <h4><i class="fa-solid fa-list-ol" aria-hidden="true"></i> Daftar Isi</h4>
       <ol>
         <?php foreach ($headings as $h): ?>
         <li class="h<?= $h['level'] ?>"><a href="#<?= e($h['anchor']) ?>"><?= e($h['title']) ?></a></li>
@@ -178,36 +351,36 @@ $galRel = q($conn, "SELECT file, judul FROM galeri WHERE tipe='image' ORDER BY u
     <?php endif; ?>
 
     <div class="u-rating">
-      <div class="u-stars">
-        <?php for ($i = 1; $i <= 5; $i++): ?><i class="<?= $i <= round($rating) ? 'fa-solid' : 'fa-regular' ?> fa-star"></i><?php endfor; ?>
+      <div class="u-stars" role="img" aria-label="Rating <?= $rating ?> dari 5 bintang">
+        <?php for ($i = 1; $i <= 5; $i++): ?><i class="<?= $i <= round($rating) ? 'fa-solid' : 'fa-regular' ?> fa-star" aria-hidden="true"></i><?php endfor; ?>
       </div>
       <div><b><?= $rating ?>/5</b><small> (<?= $ratingCount ?> pembaca menilai)</small></div>
       <div class="u-rbtns">
-        <button onclick="alert('Terima kasih atas penilaian Anda!');"><i class="fa-solid fa-thumbs-up"></i> Bermanfaat</button>
-        <button onclick="window.print()"><i class="fa-solid fa-print"></i> Cetak</button>
+        <button onclick="alert('Terima kasih atas penilaian Anda!');" aria-label="Tandai artikel bermanfaat"><i class="fa-solid fa-thumbs-up" aria-hidden="true"></i> Bermanfaat</button>
+        <button onclick="window.print()" aria-label="Cetak artikel"><i class="fa-solid fa-print" aria-hidden="true"></i> Cetak</button>
       </div>
     </div>
 
-    <article class="u-content"><?= render_content($b['isi']) ?></article>
+    <article class="u-content" role="article"><?= render_content($b['isi']) ?></article>
 
     <div class="u-article-footer">
       <div class="u-tags">
         <?php foreach (['#Fisika','#Sains','#Riset','#'.str_replace(' ','',$b['kategori']),'#Akademik'] as $t): ?>
-        <a href="berita.php?q=<?= urlencode($t) ?>"><?= e($t) ?></a>
+        <a href="berita.php?q=<?= urlencode($t) ?>" aria-label="Filter berita dengan tag <?= e($t) ?>"><?= e($t) ?></a>
         <?php endforeach; ?>
       </div>
       <div class="u-share-row">
         <span>Bagikan:</span>
-        <a class="soc fb" target="_blank" href="https://facebook.com/sharer/sharer.php?u=<?= urlencode(url('berita-detail.php?slug=' . $b['slug'])) ?>"><i class="fa-brands fa-facebook-f"></i></a>
-        <a class="soc wa" target="_blank" href="https://wa.me/?text=<?= urlencode($b['judul'] . ' ' . url('berita-detail.php?slug=' . $b['slug'])) ?>"><i class="fa-brands fa-whatsapp"></i></a>
-        <a class="soc tw" target="_blank" href="https://twitter.com/intent/tweet?text=<?= urlencode($b['judul']) ?>&url=<?= urlencode(url('berita-detail.php?slug=' . $b['slug'])) ?>"><i class="fa-brands fa-x-twitter"></i></a>
-        <a class="soc li" target="_blank" href="https://linkedin.com/shareArticle?url=<?= urlencode(url('berita-detail.php?slug=' . $b['slug'])) ?>"><i class="fa-brands fa-linkedin-in"></i></a>
-        <a class="soc pt" onclick="navigator.clipboard && navigator.clipboard.writeText('<?= url('berita-detail.php?slug=' . $b['slug']) ?>');this.innerHTML='<i class=\'fa-solid fa-check\'></i>';setTimeout(()=>this.innerHTML='<i class=\'fa-solid fa-link\'></i>',2000)"><i class="fa-solid fa-link"></i></a>
+        <a class="soc fb" target="_blank" rel="noopener noreferrer" href="https://facebook.com/sharer/sharer.php?u=<?= urlencode(url('berita-detail.php?slug=' . $b['slug'])) ?>" aria-label="Bagikan ke Facebook"><i class="fa-brands fa-facebook-f" aria-hidden="true"></i></a>
+        <a class="soc wa" target="_blank" rel="noopener noreferrer" href="https://wa.me/?text=<?= urlencode($b['judul'] . ' ' . url('berita-detail.php?slug=' . $b['slug'])) ?>" aria-label="Bagikan ke WhatsApp"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i></a>
+        <a class="soc tw" target="_blank" rel="noopener noreferrer" href="https://twitter.com/intent/tweet?text=<?= urlencode($b['judul']) ?>&url=<?= urlencode(url('berita-detail.php?slug=' . $b['slug'])) ?>" aria-label="Bagikan ke Twitter"><i class="fa-brands fa-x-twitter" aria-hidden="true"></i></a>
+        <a class="soc li" target="_blank" rel="noopener noreferrer" href="https://linkedin.com/shareArticle?url=<?= urlencode(url('berita-detail.php?slug=' . $b['slug'])) ?>" aria-label="Bagikan ke LinkedIn"><i class="fa-brands fa-linkedin-in" aria-hidden="true"></i></a>
+        <a class="soc pt" onclick="navigator.clipboard && navigator.clipboard.writeText('<?= url('berita-detail.php?slug=' . $b['slug']) ?>');this.innerHTML='<i class=\'fa-solid fa-check\'></i>';setTimeout(()=>this.innerHTML='<i class=\'fa-solid fa-link\'></i>',2000)" aria-label="Salin tautan" role="button"><i class="fa-solid fa-link" aria-hidden="true"></i></a>
       </div>
     </div>
 
     <div class="u-author-box reveal">
-      <span class="u-av"><i class="fa-solid fa-user-pen"></i></span>
+      <span class="u-av"><i class="fa-solid fa-user-pen" aria-hidden="true"></i></span>
       <div>
         <h4>Tentang Penulis</h4>
         <small><?= e($b['penulis']) ?></small>
@@ -225,17 +398,17 @@ $galRel = q($conn, "SELECT file, judul FROM galeri WHERE tipe='image' ORDER BY u
 
     <div class="u-pn">
       <?php if ($prev): ?>
-      <a href="<?= url('berita-detail.php?slug=' . e($prev['slug'])) ?>">
-        <span class="u-arr"><i class="fa-solid fa-arrow-left"></i></span>
+      <a href="<?= url('berita-detail.php?slug=' . e($prev['slug'])) ?>" aria-label="Artikel sebelumnya: <?= e($prev['judul']) ?>">
+        <span class="u-arr"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i></span>
         <span><small>ARTIKEL SEBELUMNYA</small><b><?= e($prev['judul']) ?></b></span>
       </a>
-      <?php else: ?><a class="empty"><span class="u-arr"><i class="fa-solid fa-minus"></i></span><span><small>SEBELUMNYA</small><b>Tidak ada artikel</b></span></a><?php endif; ?>
+      <?php else: ?><a class="empty" aria-label="Tidak ada artikel sebelumnya"><span class="u-arr"><i class="fa-solid fa-minus" aria-hidden="true"></i></span><span><small>SEBELUMNYA</small><b>Tidak ada artikel</b></span></a><?php endif; ?>
       <?php if ($next): ?>
-      <a class="next" href="<?= url('berita-detail.php?slug=' . e($next['slug'])) ?>">
+      <a class="next" href="<?= url('berita-detail.php?slug=' . e($next['slug'])) ?>" aria-label="Artikel berikutnya: <?= e($next['judul']) ?>">
         <span><small>ARTIKEL BERIKUTNYA</small><b><?= e($next['judul']) ?></b></span>
-        <span class="u-arr"><i class="fa-solid fa-arrow-right"></i></span>
+        <span class="u-arr"><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span>
       </a>
-      <?php else: ?><a class="empty next"><span><small>BERIKUTNYA</small><b>Tidak ada artikel</b></span><span class="u-arr"><i class="fa-solid fa-minus"></i></span></a><?php endif; ?>
+      <?php else: ?><a class="empty next" aria-label="Tidak ada artikel berikutnya"><span><small>BERIKUTNYA</small><b>Tidak ada artikel</b></span><span class="u-arr"><i class="fa-solid fa-minus" aria-hidden="true"></i></span></a><?php endif; ?>
     </div>
   </div>
 </div>
@@ -245,17 +418,17 @@ $galRel = q($conn, "SELECT file, judul FROM galeri WHERE tipe='image' ORDER BY u
 <section class="berita-sec" style="background:var(--gray)">
   <div class="container">
     <div class="sec-head reveal">
-      <span class="sec-tag"><i class="fa-solid fa-layer-group"></i> TERKAIT</span>
+      <span class="sec-tag"><i class="fa-solid fa-layer-group" aria-hidden="true"></i> TERKAIT</span>
       <h2>Artikel Lainnya dalam <span class="grad-txt"><?= e($b['kategori']) ?></span></h2>
     </div>
     <div class="u-rel-grid">
       <?php foreach ($rel as $r): $rt = max(1, (int)round(str_word_count(strip_tags((string)$r['isi'])) / 200)); ?>
-      <a class="u-rel-compact reveal" href="<?= url('berita-detail.php?slug=' . e($r['slug'])) ?>">
-        <img src="<?= e(media_url($r['gambar'])) ?>" alt="" loading="lazy">
+      <a class="u-rel-compact reveal" href="<?= url('berita-detail.php?slug=' . e($r['slug'])) ?>" aria-label="Baca artikel: <?= e($r['judul']) ?>">
+        <img src="<?= e(media_url($r['gambar'])) ?>" alt="<?= e($r['judul']) ?>" loading="lazy">
         <div class="u-rel-body">
           <small><?= e($r['kategori']) ?></small>
           <h4><?= e($r['judul']) ?></h4>
-          <span class="u-meta-mini"><i class="fa-regular fa-calendar-days"></i><?= date('d M Y', strtotime($r['tanggal'])) ?> • <i class="fa-regular fa-clock"></i><?= $rt ?> mnt • <i class="fa-regular fa-eye"></i><?= (int)$r['views'] ?></span>
+          <span class="u-meta-mini"><i class="fa-regular fa-calendar-days" aria-hidden="true"></i><?= date('d M Y', strtotime($r['tanggal'])) ?> • <i class="fa-regular fa-clock" aria-hidden="true"></i><?= $rt ?> mnt • <i class="fa-regular fa-eye" aria-hidden="true"></i><?= (int)$r['views'] ?></span>
         </div>
       </a>
       <?php endforeach; ?>
@@ -268,17 +441,17 @@ $galRel = q($conn, "SELECT file, judul FROM galeri WHERE tipe='image' ORDER BY u
 <section class="berita-sec">
   <div class="container">
     <div class="sec-head reveal">
-      <span class="sec-tag"><i class="fa-solid fa-user-pen"></i> DARI PENULIS YANG SAMA</span>
+      <span class="sec-tag"><i class="fa-solid fa-user-pen" aria-hidden="true"></i> DARI PENULIS YANG SAMA</span>
       <h2>Artikel Lain oleh <span class="grad-txt"><?= e($b['penulis']) ?></span></h2>
     </div>
     <div class="u-rel-grid">
       <?php foreach ($sameAuthor as $a): ?>
-      <a class="u-rel-compact reveal" href="<?= url('berita-detail.php?slug=' . e($a['slug'])) ?>">
-        <img src="<?= e(media_url($a['gambar'])) ?>" alt="" loading="lazy">
+      <a class="u-rel-compact reveal" href="<?= url('berita-detail.php?slug=' . e($a['slug'])) ?>" aria-label="Baca artikel: <?= e($a['judul']) ?>">
+        <img src="<?= e(media_url($a['gambar'])) ?>" alt="<?= e($a['judul']) ?>" loading="lazy">
         <div class="u-rel-body">
           <small><?= e($a['kategori']) ?></small>
           <h4><?= e($a['judul']) ?></h4>
-          <span class="u-meta-mini"><i class="fa-regular fa-calendar-days"></i><?= date('d M Y', strtotime($a['tanggal'])) ?> • <i class="fa-regular fa-eye"></i><?= (int)$a['views'] ?></span>
+          <span class="u-meta-mini"><i class="fa-regular fa-calendar-days" aria-hidden="true"></i><?= date('d M Y', strtotime($a['tanggal'])) ?> • <i class="fa-regular fa-eye" aria-hidden="true"></i><?= (int)$a['views'] ?></span>
         </div>
       </a>
       <?php endforeach; ?>
@@ -291,17 +464,17 @@ $galRel = q($conn, "SELECT file, judul FROM galeri WHERE tipe='image' ORDER BY u
 <section class="berita-sec" style="background:var(--gray)">
   <div class="container">
     <div class="sec-head reveal">
-      <span class="sec-tag"><i class="fa-solid fa-fire"></i> POPULER</span>
+      <span class="sec-tag"><i class="fa-solid fa-fire" aria-hidden="true"></i> POPULER</span>
       <h2>Artikel Populer Kategori <span class="grad-txt"><?= e($b['kategori']) ?></span></h2>
     </div>
     <div class="u-rel-grid">
       <?php foreach ($popCat as $p): ?>
-      <a class="u-rel-compact reveal" href="<?= url('berita-detail.php?slug=' . e($p['slug'])) ?>">
-        <img src="<?= e(media_url($p['gambar'])) ?>" alt="" loading="lazy">
+      <a class="u-rel-compact reveal" href="<?= url('berita-detail.php?slug=' . e($p['slug'])) ?>" aria-label="Baca artikel: <?= e($p['judul']) ?>">
+        <img src="<?= e(media_url($p['gambar'])) ?>" alt="<?= e($p['judul']) ?>" loading="lazy">
         <div class="u-rel-body">
           <small><?= e($p['kategori']) ?></small>
           <h4><?= e($p['judul']) ?></h4>
-          <span class="u-meta-mini"><i class="fa-regular fa-eye"></i><?= (int)$p['views'] ?> dibaca • <?= date('d M Y', strtotime($p['tanggal'])) ?></span>
+          <span class="u-meta-mini"><i class="fa-regular fa-eye" aria-hidden="true"></i><?= (int)$p['views'] ?> dibaca • <?= date('d M Y', strtotime($p['tanggal'])) ?></span>
         </div>
       </a>
       <?php endforeach; ?>
@@ -311,19 +484,19 @@ $galRel = q($conn, "SELECT file, judul FROM galeri WHERE tipe='image' ORDER BY u
 <?php endif; ?>
 
 <!-- Floating share sidebar -->
-<div class="u-floating-share" id="uFloatShare">
-  <a href="https://facebook.com/sharer/sharer.php?u=<?= urlencode(url('berita-detail.php?slug=' . $b['slug'])) ?>" target="_blank" style="background:#1877f2" title="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
-  <a href="https://wa.me/?text=<?= urlencode($b['judul'] . ' ' . url('berita-detail.php?slug=' . $b['slug'])) ?>" target="_blank" style="background:#25d366" title="WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>
-  <a href="https://twitter.com/intent/tweet?text=<?= urlencode($b['judul']) ?>&url=<?= urlencode(url('berita-detail.php?slug=' . $b['slug'])) ?>" target="_blank" style="background:#1da1f2" title="Twitter"><i class="fa-brands fa-x-twitter"></i></a>
-  <a href="https://linkedin.com/shareArticle?url=<?= urlencode(url('berita-detail.php?slug=' . $b['slug'])) ?>" target="_blank" style="background:#0a66c2" title="LinkedIn"><i class="fa-brands fa-linkedin-in"></i></a>
-  <a onclick="navigator.clipboard.writeText('<?= url('berita-detail.php?slug=' . $b['slug']) ?>');this.innerHTML='<i class=\'fa-solid fa-check\'></i>';setTimeout(()=>this.innerHTML='<i class=\'fa-solid fa-link\'></i>',2000)" style="background:#33415e;cursor:pointer" title="Salin Tautan"><i class="fa-solid fa-link"></i></a>
+<div class="u-floating-share" id="uFloatShare" role="complementary" aria-label="Bagikan artikel">
+  <a href="https://facebook.com/sharer/sharer.php?u=<?= urlencode(url('berita-detail.php?slug=' . $b['slug'])) ?>" target="_blank" rel="noopener noreferrer" style="background:#1877f2" title="Facebook" aria-label="Bagikan ke Facebook"><i class="fa-brands fa-facebook-f" aria-hidden="true"></i></a>
+  <a href="https://wa.me/?text=<?= urlencode($b['judul'] . ' ' . url('berita-detail.php?slug=' . $b['slug'])) ?>" target="_blank" rel="noopener noreferrer" style="background:#25d366" title="WhatsApp" aria-label="Bagikan ke WhatsApp"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i></a>
+  <a href="https://twitter.com/intent/tweet?text=<?= urlencode($b['judul']) ?>&url=<?= urlencode(url('berita-detail.php?slug=' . $b['slug'])) ?>" target="_blank" rel="noopener noreferrer" style="background:#1da1f2" title="Twitter" aria-label="Bagikan ke Twitter"><i class="fa-brands fa-x-twitter" aria-hidden="true"></i></a>
+  <a href="https://linkedin.com/shareArticle?url=<?= urlencode(url('berita-detail.php?slug=' . $b['slug'])) ?>" target="_blank" rel="noopener noreferrer" style="background:#0a66c2" title="LinkedIn" aria-label="Bagikan ke LinkedIn"><i class="fa-brands fa-linkedin-in" aria-hidden="true"></i></a>
+  <a onclick="navigator.clipboard.writeText('<?= url('berita-detail.php?slug=' . $b['slug']) ?>');this.innerHTML='<i class=\'fa-solid fa-check\'></i>';setTimeout(()=>this.innerHTML='<i class=\'fa-solid fa-link\'></i>',2000)" style="background:#33415e;cursor:pointer" title="Salin Tautan" aria-label="Salin tautan" role="button"><i class="fa-solid fa-link" aria-hidden="true"></i></a>
 </div>
 
 <!-- Article tools -->
-<div class="u-article-tools">
-  <button onclick="window.print()" title="Cetak"><i class="fa-solid fa-print"></i></button>
-  <button onclick="document.body.classList.toggle('u-font-lg')" title="Perbesar Font" class="alt"><i class="fa-solid fa-text-height"></i></button>
-  <button onclick="document.documentElement.scrollTo({top:0,behavior:'smooth'})" title="Ke Atas"><i class="fa-solid fa-arrow-up"></i></button>
+<div class="u-article-tools" role="toolbar" aria-label="Tools artikel">
+  <button onclick="window.print()" title="Cetak" aria-label="Cetak artikel"><i class="fa-solid fa-print" aria-hidden="true"></i></button>
+  <button onclick="document.body.classList.toggle('u-font-lg')" title="Perbesar Font" class="alt" aria-label="Perbesar ukuran font"><i class="fa-solid fa-text-height" aria-hidden="true"></i></button>
+  <button onclick="document.documentElement.scrollTo({top:0,behavior:'smooth'})" title="Ke Atas" aria-label="Scroll ke atas"><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button>
 </div>
 
 <script>

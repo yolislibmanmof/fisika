@@ -1,6 +1,7 @@
 # =========================================================
-#  SECURITY HARDENING v1.0 — CMS Prodi Fisika
-#  Berlaku untuk seluruh direktori proyek.
+#  PREMIUM SECURITY HARDENING v2.1 — CMS Prodi Fisika
+#  FIX: menghapus directive penyebab 500 Internal Server Error
+#  Kompatibel: Apache 2.4+ (Laragon / XAMPP / shared hosting)
 # =========================================================
 
 # ===== 1. DIRECTORY OPTIONS =====
@@ -13,7 +14,9 @@ ServerSignature Off
   Header unset Server
   Header unset X-Powered-By
   Header unset X-AspNet-Version
+  Header unset ETag
 </IfModule>
+FileETag None
 
 # ===== 3. SECURITY HEADERS =====
 <IfModule mod_headers.c>
@@ -25,7 +28,10 @@ ServerSignature Off
   Header always set X-Permitted-Cross-Domain-Policies "none"
   Header always set Cross-Origin-Opener-Policy "same-origin"
   Header always set Cross-Origin-Resource-Policy "same-origin"
-  Header always set Cross-Origin-Embedder-Policy "require-corp"
+  Header always set X-Download-Options "noopen"
+
+  # PREMIUM (opsional): HSTS — aktifkan HANYA setelah SSL terpasang
+  # Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
 </IfModule>
 
 # ===== 4. BLOCK SENSITIVE FILES =====
@@ -50,9 +56,7 @@ ServerSignature Off
   RewriteRule ^(config|includes|admin/includes)/ - [F,L]
 
   # --- 5.2 Blokir eksekusi PHP di folder unggahan ---
-  # Path utama (struktur existing)
   RewriteRule ^uploads/.*\.(php|phtml|php3|php4|php5|php7|php8|pl|py|cgi|sh|exe|bat|com|asp|aspx|jsp)$ - [F,L]
-  # Path sesungguhnya proyek ini
   RewriteRule ^assets/uploads/.*\.(php|phtml|php3|php4|php5|php7|php8|pl|py|cgi|sh|exe|bat|com|asp|aspx|jsp)$ - [F,L]
 
   # --- 5.3 Blokir berkas/direktori tersembunyi ---
@@ -75,20 +79,52 @@ ServerSignature Off
   # --- 5.6 Blokir file backup/editor sementara ---
   RewriteRule \.(bak|backup|old|orig|save|swp|dist)$ - [F,L]
 
-  # --- 5.7 Blokir request mencurigakan (SQLi/Path Traversal dasar) ---
+  # --- 5.7 Blokir request mencurigakan (SQLi/XSS dasar) ---
   RewriteCond %{QUERY_STRING} (<|%3C).*script.*(>|%3E) [NC,OR]
   RewriteCond %{QUERY_STRING} GLOBALS(=|\[|\%[0-9A-Z]{0,2}) [OR]
   RewriteCond %{QUERY_STRING} _REQUEST(=|\[|\%[0-9A-Z]{0,2})
   RewriteRule .* - [F,L]
+
+  # --- 5.8 PREMIUM: blokir path traversal pada URI ---
+  RewriteCond %{REQUEST_URI} \.\./ [NC]
+  RewriteRule .* - [F,L]
+
+  # --- 5.9 PREMIUM: blokir method TRACE/TRACK (anti XST) ---
+  RewriteCond %{REQUEST_METHOD} ^(TRACE|TRACK)
+  RewriteRule .* - [F,L]
+
+  # --- 5.10 PREMIUM: blokir file log & ht* ---
+  RewriteRule \.(htaccess|htpasswd|err_log|php_error_log|access_log)$ - [F,L]
+
+  # =========================================================
+  # BLOK OPSIONAL — kondisi & rule di-comment BERSAMA-SAMA
+  # agar tidak ada RewriteCond menggantung (penyebab bug logika)
+  # =========================================================
+
+  # Force HTTPS (aktifkan setelah SSL terpasang):
+  # RewriteCond %{HTTPS} off
+  # RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+  # Blokir bad bots (hati-hati: bisa memblokir crawler legit):
+  # RewriteCond %{HTTP_USER_AGENT} (nikto|sqlmap|nmap|masscan|zgrab|nuclei|wpscan|acunetix) [NC]
+  # RewriteRule .* - [F,L]
+
+  # Clean URL tanpa ekstensi .php:
+  # RewriteCond %{REQUEST_FILENAME} !-d
+  # RewriteCond %{REQUEST_FILENAME}\.php -f
+  # RewriteRule ^(.*)$ $1.php [L]
 </IfModule>
 
 # ===== 6. REQUEST LIMITS =====
-# Batasi ukuran body request ke 20 MB (selaras dengan php.ini)
+# CATATAN PENTING: LimitRequestBody AMAN di .htaccess.
+# LimitRequestFields/FieldSize/Line TIDAK BOLEH di sini (penyebab 500 di v2.0).
+# Jika butuh, letakkan di httpd.conf / virtual host (lihat panduan di bawah).
 LimitRequestBody 20971520
 
-# ===== 7. ERROR PAGES (opsional) =====
+# ===== 7. ERROR PAGES =====
 ErrorDocument 403 "<h1>403 — Akses Ditolak</h1><p>Anda tidak memiliki izin untuk mengakses sumber daya ini.</p>"
 ErrorDocument 404 "<h1>404 — Tidak Ditemukan</h1><p>Halaman yang Anda cari tidak tersedia.</p>"
+ErrorDocument 500 "<h1>500 — Kesalahan Server</h1><p>Tim teknis telah diberitahu. Silakan coba lagi nanti.</p>"
 
 # ===== 8. PREVENT HOTLINKING (opsional — aktifkan bila perlu) =====
 # <IfModule mod_rewrite.c>
@@ -98,14 +134,15 @@ ErrorDocument 404 "<h1>404 — Tidak Ditemukan</h1><p>Halaman yang Anda cari tid
 #   RewriteRule \.(jpg|jpeg|png|gif|webp|mp4|webm)$ - [F,L]
 # </IfModule>
 
-# ===== 9. COMPRESS OUTPUT (opsional — meningkatkan kecepatan) =====
+# ===== 9. COMPRESS OUTPUT =====
 <IfModule mod_deflate.c>
   AddOutputFilterByType DEFLATE text/html text/plain text/css
   AddOutputFilterByType DEFLATE text/javascript application/javascript application/json
-  AddOutputFilterByType DEFLATE image/svg+xml application/xml
+  AddOutputFilterByType DEFLATE image/svg+xml application/xml application/xhtml+xml
+  AddOutputFilterByType DEFLATE application/rss+xml application/atom+xml
 </IfModule>
 
-# ===== 10. BROWSER CACHING (opsional — mempercepat load berikutnya) =====
+# ===== 10. BROWSER CACHING =====
 <IfModule mod_expires.c>
   ExpiresActive On
   ExpiresByType image/jpeg "access plus 1 month"
@@ -113,11 +150,38 @@ ErrorDocument 404 "<h1>404 — Tidak Ditemukan</h1><p>Halaman yang Anda cari tid
   ExpiresByType image/webp "access plus 1 month"
   ExpiresByType image/gif "access plus 1 month"
   ExpiresByType image/svg+xml "access plus 1 month"
+  ExpiresByType image/x-icon "access plus 1 year"
   ExpiresByType text/css "access plus 1 week"
   ExpiresByType application/javascript "access plus 1 week"
+  ExpiresByType text/javascript "access plus 1 week"
   ExpiresByType application/pdf "access plus 1 month"
+  ExpiresByType font/woff "access plus 1 year"
+  ExpiresByType font/woff2 "access plus 1 year"
+  ExpiresByType text/html "access plus 0 seconds"
+</IfModule>
+
+# ===== 11. PREMIUM: CACHE-CONTROL GRANULAR =====
+<IfModule mod_headers.c>
+  <FilesMatch "\.(jpg|jpeg|png|gif|webp|svg|ico|mp4|webm|woff|woff2)$">
+    Header set Cache-Control "public, max-age=2592000"
+  </FilesMatch>
+  <FilesMatch "\.(css|js)$">
+    Header set Cache-Control "public, max-age=604800"
+  </FilesMatch>
+</IfModule>
+
+# ===== 12. PREMIUM: MIME TYPES =====
+<IfModule mod_mime.c>
+  AddType image/webp .webp
+  AddType image/svg+xml .svg .svgz
+  AddType font/woff .woff
+  AddType font/woff2 .woff2
+  AddType application/javascript .js
+  AddType application/json .json
+  AddType video/mp4 .mp4
+  AddType video/webm .webm
 </IfModule>
 
 # =========================================================
-#  END OF SECURITY HARDENING v1.0
+#  END OF PREMIUM SECURITY HARDENING v2.1
 # =========================================================
