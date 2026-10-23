@@ -1,0 +1,123 @@
+# =========================================================
+#  SECURITY HARDENING v1.0 — CMS Prodi Fisika
+#  Berlaku untuk seluruh direktori proyek.
+# =========================================================
+
+# ===== 1. DIRECTORY OPTIONS =====
+Options -Indexes
+Options -ExecCGI
+ServerSignature Off
+
+# ===== 2. SERVER IDENTITY REMOVAL =====
+<IfModule mod_headers.c>
+  Header unset Server
+  Header unset X-Powered-By
+  Header unset X-AspNet-Version
+</IfModule>
+
+# ===== 3. SECURITY HEADERS =====
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=()"
+  Header always set X-XSS-Protection "1; mode=block"
+  Header always set X-Permitted-Cross-Domain-Policies "none"
+  Header always set Cross-Origin-Opener-Policy "same-origin"
+  Header always set Cross-Origin-Resource-Policy "same-origin"
+  Header always set Cross-Origin-Embedder-Policy "require-corp"
+</IfModule>
+
+# ===== 4. BLOCK SENSITIVE FILES =====
+<FilesMatch "^(config\.php|\.env|\.env\.local|\.env\.production|composer\.(json|lock)|package(-lock)?\.json|yarn\.lock|pnpm-lock\.yaml)$">
+  Require all denied
+</FilesMatch>
+
+<FilesMatch "\.(sql|bak|backup|old|orig|save|swp|dist|log|ini|conf|config)$">
+  Require all denied
+</FilesMatch>
+
+<FilesMatch "^\.">
+  Require all denied
+</FilesMatch>
+
+# ===== 5. REWRITE ENGINE =====
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # --- 5.1 Blokir akses HTTP ke folder sensitif ---
+  RewriteRule ^(config|includes|admin/includes)/ - [F,L]
+
+  # --- 5.2 Blokir eksekusi PHP di folder unggahan ---
+  # Path utama (struktur existing)
+  RewriteRule ^uploads/.*\.(php|phtml|php3|php4|php5|php7|php8|pl|py|cgi|sh|exe|bat|com|asp|aspx|jsp)$ - [F,L]
+  # Path sesungguhnya proyek ini
+  RewriteRule ^assets/uploads/.*\.(php|phtml|php3|php4|php5|php7|php8|pl|py|cgi|sh|exe|bat|com|asp|aspx|jsp)$ - [F,L]
+
+  # --- 5.3 Blokir berkas/direktori tersembunyi ---
+  RewriteRule (^\.|/\.) - [F,L]
+
+  # --- 5.4 Blokir folder version control & tooling ---
+  RewriteRule ^\.git(/|$) - [F,L]
+  RewriteRule ^\.svn(/|$) - [F,L]
+  RewriteRule ^\.hg(/|$) - [F,L]
+  RewriteRule ^node_modules(/|$) - [F,L]
+  RewriteRule ^vendor(/|$) - [F,L]
+  RewriteRule ^\.vscode(/|$) - [F,L]
+  RewriteRule ^\.idea(/|$) - [F,L]
+
+  # --- 5.5 Blokir file info / uji coba umum ---
+  RewriteRule ^(phpinfo|info|test|testing)\.php$ - [F,L]
+  RewriteRule ^wp-(admin|login|config)\.php$ - [F,L]
+  RewriteRule ^(administrator|wp-admin|admin\.php)$ - [F,L]
+
+  # --- 5.6 Blokir file backup/editor sementara ---
+  RewriteRule \.(bak|backup|old|orig|save|swp|dist)$ - [F,L]
+
+  # --- 5.7 Blokir request mencurigakan (SQLi/Path Traversal dasar) ---
+  RewriteCond %{QUERY_STRING} (<|%3C).*script.*(>|%3E) [NC,OR]
+  RewriteCond %{QUERY_STRING} GLOBALS(=|\[|\%[0-9A-Z]{0,2}) [OR]
+  RewriteCond %{QUERY_STRING} _REQUEST(=|\[|\%[0-9A-Z]{0,2})
+  RewriteRule .* - [F,L]
+</IfModule>
+
+# ===== 6. REQUEST LIMITS =====
+# Batasi ukuran body request ke 20 MB (selaras dengan php.ini)
+LimitRequestBody 20971520
+
+# ===== 7. ERROR PAGES (opsional) =====
+ErrorDocument 403 "<h1>403 — Akses Ditolak</h1><p>Anda tidak memiliki izin untuk mengakses sumber daya ini.</p>"
+ErrorDocument 404 "<h1>404 — Tidak Ditemukan</h1><p>Halaman yang Anda cari tidak tersedia.</p>"
+
+# ===== 8. PREVENT HOTLINKING (opsional — aktifkan bila perlu) =====
+# <IfModule mod_rewrite.c>
+#   RewriteCond %{HTTP_REFERER} !^$
+#   RewriteCond %{HTTP_REFERER} !^https?://(www\.)?localhost [NC]
+#   RewriteCond %{HTTP_REFERER} !^https?://(www\.)?yourdomain\.com [NC]
+#   RewriteRule \.(jpg|jpeg|png|gif|webp|mp4|webm)$ - [F,L]
+# </IfModule>
+
+# ===== 9. COMPRESS OUTPUT (opsional — meningkatkan kecepatan) =====
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/css
+  AddOutputFilterByType DEFLATE text/javascript application/javascript application/json
+  AddOutputFilterByType DEFLATE image/svg+xml application/xml
+</IfModule>
+
+# ===== 10. BROWSER CACHING (opsional — mempercepat load berikutnya) =====
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/jpeg "access plus 1 month"
+  ExpiresByType image/png "access plus 1 month"
+  ExpiresByType image/webp "access plus 1 month"
+  ExpiresByType image/gif "access plus 1 month"
+  ExpiresByType image/svg+xml "access plus 1 month"
+  ExpiresByType text/css "access plus 1 week"
+  ExpiresByType application/javascript "access plus 1 week"
+  ExpiresByType application/pdf "access plus 1 month"
+</IfModule>
+
+# =========================================================
+#  END OF SECURITY HARDENING v1.0
+# =========================================================
