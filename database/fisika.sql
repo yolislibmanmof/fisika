@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Generation Time: Oct 23, 2026 at 04:26 AM
+-- Generation Time: Oct 23, 2026 at 11:34 AM
 -- Server version: 5.7.39
 -- PHP Version: 8.2.28
 
@@ -48,6 +48,43 @@ INSERT INTO `admin_logs` (`id`, `user_id`, `user_name`, `action`, `detail`, `ip`
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `agenda`
+--
+
+CREATE TABLE `agenda` (
+  `id` int(11) NOT NULL,
+  `judul` varchar(200) NOT NULL,
+  `tanggal_mulai` datetime NOT NULL,
+  `tanggal_selesai` datetime DEFAULT NULL,
+  `lokasi` varchar(150) DEFAULT 'Gedung FMIPA',
+  `deskripsi` text,
+  `tipe` enum('Seminar','Ujian','Wisuda','Workshop','Lainnya') DEFAULT 'Lainnya',
+  `status` enum('akan_datang','berlangsung','selesai') DEFAULT 'akan_datang'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `alumni`
+--
+
+CREATE TABLE `alumni` (
+  `id` int(11) NOT NULL,
+  `nama` varchar(150) NOT NULL,
+  `angkatan` year(4) NOT NULL,
+  `pekerjaan` varchar(150) DEFAULT '',
+  `perusahaan` varchar(150) DEFAULT '',
+  `sektor` enum('BUMN','Swasta','PNS/TNI/Polri','Akademisi','Wirausaha','Lainnya') DEFAULT 'Lainnya',
+  `testimoni` text,
+  `foto` varchar(255) DEFAULT '',
+  `linkedin` varchar(255) DEFAULT '',
+  `ditampilkan` tinyint(4) DEFAULT '1',
+  `urutan` int(11) DEFAULT '1'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `berita`
 --
 
@@ -86,6 +123,29 @@ CREATE TABLE `blocked_ips` (
   `reason` varchar(255) NOT NULL DEFAULT '',
   `blocked_until` datetime NOT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `dosen`
+--
+
+CREATE TABLE `dosen` (
+  `id` int(11) NOT NULL,
+  `nama` varchar(150) NOT NULL,
+  `nip` varchar(50) DEFAULT '',
+  `gelar_depan` varchar(50) DEFAULT '',
+  `gelar_belakang` varchar(50) DEFAULT '',
+  `bidang_keahlian` varchar(100) DEFAULT 'Fisika Teori',
+  `foto` varchar(255) DEFAULT '',
+  `email` varchar(100) DEFAULT '',
+  `link_scholar` varchar(255) DEFAULT '',
+  `link_scopus` varchar(255) DEFAULT '',
+  `link_orcid` varchar(255) DEFAULT '',
+  `riwayat_pendidikan` text,
+  `urutan` int(11) DEFAULT '1',
+  `aktif` tinyint(4) DEFAULT '1'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------
@@ -213,7 +273,13 @@ INSERT INTO `menus` (`id`, `label`, `url`, `parent_id`, `urutan`, `aktif`) VALUE
 (9, 'Struktur Organisasi', 'page.php?slug=struktur-organisasi', 2, 3, 1),
 (10, 'Kurikulum', 'page.php?slug=kurikulum', 3, 1, 1),
 (11, 'Laboratorium', 'page.php?slug=laboratorium', 3, 2, 1),
-(12, 'Penelitian', 'page.php?slug=penelitian', 3, 3, 1);
+(12, 'Penelitian', 'page.php?slug=penelitian', 3, 3, 1),
+(13, 'Dosen & Peneliti', 'dosen.php', 2, 4, 1),
+(14, 'Publikasi Ilmiah', 'publikasi.php', 3, 4, 1),
+(15, 'Agenda & Kalender', 'agenda.php', 3, 5, 1),
+(16, 'Pusat Unduhan', 'unduh.php', 3, 6, 1),
+(17, 'Alumni & Tracer Study', 'alumni.php', 2, 5, 1),
+(18, 'Kurikulum & RPS', 'rps.php', 3, 7, 1);
 
 -- --------------------------------------------------------
 
@@ -243,6 +309,44 @@ INSERT INTO `pages` (`id`, `slug`, `judul`, `konten`, `gambar`, `urutan`, `statu
 (5, 'laboratorium', 'Laboratorium', '<p>Prodi Fisika memiliki laboratorium Fisika Dasar, Elektronika & Instrumentasi, Optika & Fotonika, Material, serta Komputasi Fisika yang mendukung praktikum dan riset mahasiswa.</p>', 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1200&q=60', 5, 1),
 (6, 'penelitian', 'Penelitian', '<p>Dosen dan mahasiswa aktif melakukan penelitian pada bidang material maju, fisika medis, komputasi kuantum, dan energi terbarukan dengan pendanaan nasional maupun internasional.</p>', '', 6, 1),
 (7, 'kontak', 'Kontak Kami', '<p>Gedung FMIPA Lantai 2, Jl. Pendidikan No. 1, Indonesia.</p><p>Telepon: (021) 555-0188 — Email: fisika@kampus.ac.id</p><p>Layanan: Senin–Jumat, 08.00–16.00 WIB.</p>', '', 7, 1);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `publikasi`
+--
+
+CREATE TABLE `publikasi` (
+  `id` int(11) NOT NULL,
+  `judul` text NOT NULL,
+  `penulis` varchar(255) NOT NULL,
+  `nama_jurnal` varchar(200) NOT NULL,
+  `tahun` year(4) NOT NULL,
+  `doi` varchar(100) DEFAULT '',
+  `link_url` varchar(255) DEFAULT '',
+  `indeks` enum('Scopus Q1','Scopus Q2','Scopus Q3','Scopus Q4','Sinta 1','Sinta 2','Lainnya') DEFAULT 'Lainnya',
+  `dosen_pengusul` varchar(150) DEFAULT '',
+  `urutan` int(11) DEFAULT '1'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `rps_kurikulum`
+--
+
+CREATE TABLE `rps_kurikulum` (
+  `id` int(11) NOT NULL,
+  `kode_mk` varchar(50) NOT NULL,
+  `mata_kuliah` varchar(200) NOT NULL,
+  `semester` varchar(20) DEFAULT 'Ganjil',
+  `tahun_akademik` varchar(20) DEFAULT '2026/2027',
+  `file_path` varchar(255) NOT NULL,
+  `ukuran_file` varchar(20) DEFAULT '',
+  `jumlah_unduh` int(11) DEFAULT '0',
+  `urutan` int(11) DEFAULT '1',
+  `tanggal_upload` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------
 
@@ -332,6 +436,22 @@ INSERT INTO `stats` (`id`, `label`, `nilai`, `suffix`, `icon`, `urutan`) VALUES
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `unduh`
+--
+
+CREATE TABLE `unduh` (
+  `id` int(11) NOT NULL,
+  `judul` varchar(200) NOT NULL,
+  `kategori` enum('Akademik','Administrasi','Pedoman','Lainnya') DEFAULT 'Akademik',
+  `file_path` varchar(255) NOT NULL,
+  `ukuran_file` varchar(20) DEFAULT '',
+  `jumlah_unduh` int(11) DEFAULT '0',
+  `tanggal_upload` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `users`
 --
 
@@ -364,6 +484,20 @@ ALTER TABLE `admin_logs`
   ADD KEY `idx_action` (`action`);
 
 --
+-- Indexes for table `agenda`
+--
+ALTER TABLE `agenda`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `alumni`
+--
+ALTER TABLE `alumni`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_angkatan` (`angkatan`),
+  ADD KEY `idx_sektor` (`sektor`);
+
+--
 -- Indexes for table `berita`
 --
 ALTER TABLE `berita`
@@ -376,6 +510,12 @@ ALTER TABLE `berita`
 ALTER TABLE `blocked_ips`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `ip` (`ip`);
+
+--
+-- Indexes for table `dosen`
+--
+ALTER TABLE `dosen`
+  ADD PRIMARY KEY (`id`);
 
 --
 -- Indexes for table `fitur`
@@ -417,6 +557,22 @@ ALTER TABLE `pages`
   ADD UNIQUE KEY `slug` (`slug`);
 
 --
+-- Indexes for table `publikasi`
+--
+ALTER TABLE `publikasi`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_tahun` (`tahun`),
+  ADD KEY `idx_indeks` (`indeks`);
+
+--
+-- Indexes for table `rps_kurikulum`
+--
+ALTER TABLE `rps_kurikulum`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_semester` (`semester`),
+  ADD KEY `idx_tahun` (`tahun_akademik`);
+
+--
 -- Indexes for table `sambutan`
 --
 ALTER TABLE `sambutan`
@@ -432,6 +588,12 @@ ALTER TABLE `settings`
 -- Indexes for table `stats`
 --
 ALTER TABLE `stats`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `unduh`
+--
+ALTER TABLE `unduh`
   ADD PRIMARY KEY (`id`);
 
 --
@@ -452,6 +614,18 @@ ALTER TABLE `admin_logs`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
+-- AUTO_INCREMENT for table `agenda`
+--
+ALTER TABLE `agenda`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `alumni`
+--
+ALTER TABLE `alumni`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `berita`
 --
 ALTER TABLE `berita`
@@ -461,6 +635,12 @@ ALTER TABLE `berita`
 -- AUTO_INCREMENT for table `blocked_ips`
 --
 ALTER TABLE `blocked_ips`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `dosen`
+--
+ALTER TABLE `dosen`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
@@ -491,7 +671,7 @@ ALTER TABLE `login_attempts`
 -- AUTO_INCREMENT for table `menus`
 --
 ALTER TABLE `menus`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
 
 --
 -- AUTO_INCREMENT for table `pages`
@@ -500,10 +680,28 @@ ALTER TABLE `pages`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
+-- AUTO_INCREMENT for table `publikasi`
+--
+ALTER TABLE `publikasi`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `rps_kurikulum`
+--
+ALTER TABLE `rps_kurikulum`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `stats`
 --
 ALTER TABLE `stats`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
+-- AUTO_INCREMENT for table `unduh`
+--
+ALTER TABLE `unduh`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `users`

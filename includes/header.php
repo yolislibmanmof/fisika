@@ -307,6 +307,69 @@ body {
     transition-duration: 0.3s;
     transition-timing-function: ease;
 }
+
+/* ========= PREMIUM: NAVBAR PORTAL DROPDOWN ========= */
+.nav-dropdown { position: relative; display: inline-block; }
+
+.btn-portal {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 16px; border-radius: 10px; 
+  border: 1.5px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.08); 
+  color: #ffffff; /* Default untuk dark mode / navbar gelap */
+  font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: all 0.3s ease; 
+  backdrop-filter: blur(8px);
+}
+.btn-portal:hover { 
+  background: rgba(255,255,255,0.15); 
+  border-color: rgba(255,255,255,0.4); 
+  transform: translateY(-1px); 
+}
+
+/* ===== PERBAIKAN KHUSUS LIGHT MODE ===== */
+/* Agar teks dan border terlihat jelas di background terang */
+body:not([data-theme="dark"]) .btn-portal {
+  color: #0a66c2; /* Warna biru tua */
+  background: rgba(10, 102, 194, 0.08);
+  border-color: rgba(10, 102, 194, 0.2);
+}
+body:not([data-theme="dark"]) .btn-portal:hover {
+  background: rgba(10, 102, 194, 0.15);
+  border-color: rgba(10, 102, 194, 0.4);
+}
+
+/* Dark mode specific overrides */
+[data-theme="dark"] .btn-portal { 
+  border-color: rgba(255,255,255,0.15); 
+  background: rgba(255,255,255,0.05); 
+  color: #ffffff;
+}
+
+.dropdown-menu {
+  display: none; position: absolute; right: 0; top: calc(100% + 12px);
+  background: var(--bg-surface, #ffffff); border-radius: 14px;
+  box-shadow: 0 15px 40px rgba(10,42,94,0.15); border: 1px solid var(--border-light, #e2e8f0);
+  min-width: 220px; z-index: 1000; overflow: hidden; padding: 6px;
+  animation: a2zin 0.25s ease-out;
+}
+.dropdown-menu.show { display: block; }
+
+.dropdown-item {
+  display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+  color: var(--text-main, #0F172A); text-decoration: none; font-size: 13.5px; font-weight: 600;
+  border-radius: 10px; transition: all 0.2s ease;
+}
+.dropdown-item i { width: 20px; text-align: center; font-size: 15px; }
+.dropdown-item:hover { background: var(--bg-elevated, #f8fafc); color: var(--brand-primary, #0a66c2); transform: translateX(4px); }
+.dropdown-item .fa-graduation-cap { color: #0a66c2; }
+.dropdown-item .fa-mobile-screen { color: #00b874; }
+.dropdown-item .fa-book-open { color: #8b5cf6; }
+
+@media(max-width: 768px) {
+  .desktop-only { display: none !important; }
+  .btn-portal { padding: 9px 12px; }
+}
 </style>
 </head>
 <body>
@@ -381,6 +444,27 @@ body {
 
     <div class="nav-actions">
       <button class="icon-btn" id="btnSearch" title="Cari" aria-label="Buka pencarian"><i class="fa-solid fa-magnifying-glass"></i></button>
+      
+      <!-- ===== PREMIUM: DROPDOWN PORTAL AKADEMIK ===== -->
+      <div class="nav-dropdown" id="portalDropdownContainer">
+        <button class="btn-portal" onclick="togglePortalDropdown(event)" aria-label="Portal Akademik" title="Portal Akademik">
+          <i class="fa-solid fa-grid-2"></i> <span class="desktop-only">Portal</span> <i class="fa-solid fa-chevron-down" style="font-size:10px; margin-left:4px;"></i>
+        </button>
+        <div id="portalDropdown" class="dropdown-menu">
+          <!-- GANTI URL DI BAWAH INI DENGAN LINK ASLI KAMPUS ANDA -->
+          <a href="https://unimof.ac.id/" target="_blank" rel="noopener" class="dropdown-item">
+            <i class="fa-solid fa-graduation-cap"></i> <span>SIAKAD</span>
+          </a>
+          <a href="https://unimof.sevimaplatform.com/" target="_blank" rel="noopener" class="dropdown-item">
+            <i class="fa-solid fa-mobile-screen"></i> <span>SEVIMA</span>
+          </a>
+          <a href="https://digilib.unimof.ac.id/" target="_blank" rel="noopener" class="dropdown-item">
+            <i class="fa-solid fa-book-open"></i> <span>Perpustakaan Digital</span>
+          </a>
+        </div>
+      </div>
+      <!-- ===== AKHIR DROPDOWN PORTAL ===== -->
+
       <a class="btn-cta" href="<?= url('page.php?slug=kontak') ?>"><i class="fa-solid fa-paper-plane"></i> DAFTAR SEKARANG</a>
       <button class="icon-btn burger" id="btnBurger" aria-label="Toggle menu"><i class="fa-solid fa-bars-staggered"></i></button>
     </div>
@@ -395,3 +479,20 @@ body {
     <button type="button" class="search-close" id="searchClose" aria-label="Tutup pencarian"><i class="fa-solid fa-xmark"></i></button>
   </form>
 </div>
+
+<script>
+/* ===== PREMIUM: Toggle & Auto-Close Portal Dropdown ===== */
+function togglePortalDropdown(e) {
+  e.stopPropagation();
+  var menu = document.getElementById('portalDropdown');
+  if (menu) menu.classList.toggle('show');
+}
+
+document.addEventListener('click', function(e) {
+  var menu = document.getElementById('portalDropdown');
+  var container = document.getElementById('portalDropdownContainer');
+  if (menu && container && !container.contains(e.target)) {
+    menu.classList.remove('show');
+  }
+});
+</script>
